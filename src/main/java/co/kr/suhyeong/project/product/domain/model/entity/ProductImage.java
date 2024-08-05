@@ -35,6 +35,10 @@ public class ProductImage extends TimeEntity implements Serializable {
         this.imgPath = imagePath;
     }
 
+    public int getImageSequence() {
+        return this.productImageId.getImageSequence();
+    }
+
     public String getImageDivCode() {
         return this.productImageId.getDivCode().getCode();
     }

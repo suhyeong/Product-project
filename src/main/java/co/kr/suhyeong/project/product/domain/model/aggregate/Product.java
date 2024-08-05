@@ -2,6 +2,7 @@ package co.kr.suhyeong.project.product.domain.model.aggregate;
 
 import co.kr.suhyeong.project.product.domain.command.CreateProductCommand;
 import co.kr.suhyeong.project.product.domain.command.ModifyProductCommand;
+import co.kr.suhyeong.project.product.domain.command.ModifyProductImageCommand;
 import co.kr.suhyeong.project.product.domain.constant.FeatureType;
 import co.kr.suhyeong.project.product.domain.constant.ProductImageCode;
 import co.kr.suhyeong.project.product.domain.model.converter.ProductFeaturesTypeConverter;
@@ -12,6 +13,7 @@ import co.kr.suhyeong.project.product.domain.model.entity.TimeEntity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jdk.jfr.Description;
 import lombok.*;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "product_master")
@@ -85,18 +88,17 @@ public class Product extends TimeEntity implements Serializable {
         this.cost = command.getPrice();
         this.isSale = false;
         this.featureTypes = command.getFeatureTypes();
-        this.createProductImages(command);
+        this.createProductImages(command.getThumbnailImageName(), command.getDetailImageName());
         this.createProductOptions(command.getOptionName(), command.getDefaultOptionName());
     }
 
-    private void createProductImages(CreateProductCommand command) {
+    private void createProductImages(String thumbnailImageName, List<String> detailImageName) {
         this.images = new ArrayList<>();
-        if(command.isThumbnailImageExist())
-            this.images.add(new ProductImage(this, ProductImageCode.THUMBNAIL_IMAGE, command.getThumbnailImageName(), this.images.size() + 1));
-        if(command.isDetailImageExist()) {
-            command.getDetailImageName().forEach(name -> {
-                this.images.add(new ProductImage(this, ProductImageCode.FULL_DETAIL_IMAGE, name, this.images.size() + 1));
-            });
+        if(StringUtils.isNotBlank(thumbnailImageName))
+            this.images.add(new ProductImage(this, ProductImageCode.THUMBNAIL_IMAGE, thumbnailImageName, this.images.size() + 1));
+        if(Objects.nonNull(detailImageName) && !detailImageName.isEmpty()) {
+            detailImageName.forEach(name ->
+                this.images.add(new ProductImage(this, ProductImageCode.FULL_DETAIL_IMAGE, name, this.images.size() + 1)));
         }
     }
 
@@ -119,22 +121,35 @@ public class Product extends TimeEntity implements Serializable {
         this.modifyProductOptions(command.getOptions());
     }
 
+    public List<String> getImageNameToDelete(List<Integer> sequenceList) {
+        return this.images.stream().filter(image -> !sequenceList.contains(image.getImageSequence())).map(ProductImage::getImgPath).collect(Collectors.toList());
+    }
+
     /**
      * 상품 이미지 수정
-     * 1. 기존 이미지가 존재할 경우
-     *  1-1. 썸네일 이미지가 삭제됐을 경우 썸네일 이미지 타입의 기존 데이터를 삭제한다.
-     * 2.
+     * 1. 수정하려는 이미지 리스트가 없을 경우 리턴
+     * 2. 기존 이미지가 없는 경우 이미지 데이터 전부 새로 생성
+     * 3. 기존 이미지가 존재할 경우
+     *  3-1. 수정하려는 이미지 리스트 중 삭제된 이미지만 기존 이미지 리스트에서 제거한다.
      * @param command
      */
-    private void modifyProductImages(ModifyProductCommand command) {
-        if(Objects.nonNull(this.images) && !this.images.isEmpty()) {
-//            if(!command.isThumbnailImageExist())
-//                this.images.removeIf(ProductImage::isThumbnailImage);
-
+    private void modifyProductImages(ModifyProductImageCommand command) {
+        if(!command.existModifyImage()) {
+            this.images.clear();
+            return;
         }
-//        if(Objects.nonNull(this.images) && !this.images.isEmpty()) {
-//            this.images.forEach(item -> item.modifyImagePath(command));
-//        }
+
+        String thumbnailImageName = command.getThumbnailImagePath();
+        List<String> detailImageNames = command.getDetailImagePath();
+
+        if(Objects.isNull(this.images) || this.images.isEmpty()) {
+            this.createProductImages(thumbnailImageName, detailImageNames);
+            return;
+        }
+
+        List<Integer> notModifiedImageSequences = command.getNotModifyImageSequences();
+        this.images.removeIf(image -> !notModifiedImageSequences.contains(image.getImageSequence()));
+
     }
 
     private boolean isOptionExist() {

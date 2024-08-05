@@ -5,6 +5,7 @@ import co.kr.suhyeong.project.product.application.internal.commandservice.Produc
 import co.kr.suhyeong.project.product.application.internal.queryservice.ProductQueryService;
 import co.kr.suhyeong.project.product.domain.command.GetProductImageCommand;
 import co.kr.suhyeong.project.product.domain.command.GetProductListCommand;
+import co.kr.suhyeong.project.product.domain.command.ModifyProductImageCommand;
 import co.kr.suhyeong.project.product.domain.model.view.ProductImageView;
 import co.kr.suhyeong.project.product.domain.model.view.ProductListView;
 import co.kr.suhyeong.project.product.domain.model.view.ProductView;
@@ -44,6 +45,7 @@ public class ProductController extends BaseController {
     private final ModifyProductCommandDTOAssembler modifyProductCommandDTOAssembler;
     private final GetProductListCommandDTOAssembler getProductListCommandDTOAssembler;
     private final GetProductCommandDTOAssembler getProductCommandDTOAssembler;
+    private final ModifyProductImageCommandDTOAssembler modifyProductImageCommandDTOAssembler;
 
     @Operation(summary = "상품 생성 API", description = "새로운 상품을 생성한다.")
     @ApiResponses(value = {
@@ -121,6 +123,12 @@ public class ProductController extends BaseController {
                 .body(rspDto);
     }
 
+    @Operation(summary = "상품 이미지 정보 수정 API", description = "상품 코드의 상품 이미지 정보를 수정한다.")
+    @PutMapping(PRODUCT_IMAGE)
+    public ResponseEntity<Void> modifyProductImage(@PathVariable String productId, @RequestBody ModifyProductImageReqDto reqDto) {
+        productImageCommandService.modifyProductImages(modifyProductImageCommandDTOAssembler.toCommand(productId, reqDto));
+        return ResponseEntity.ok().headers(getSuccessHeaders()).build();
+    }
 
 
 }
